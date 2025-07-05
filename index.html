@@ -30,7 +30,14 @@
       border-radius: 16px;
       font-size: 15px;
       word-wrap: break-word;
-      margin: 4px 0;
+      margin: 6px 0;
+      transition: all 0.2s ease;
+      animation: pop 0.2s ease;
+    }
+
+    @keyframes pop {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
 
     .me {
@@ -43,6 +50,13 @@
       background-color: #f1f0f0;
       align-self: flex-start;
       margin-right: auto;
+    }
+
+    .timestamp {
+      font-size: 11px;
+      color: gray;
+      margin-top: 2px;
+      text-align: right;
     }
 
     #inputArea {
@@ -112,7 +126,6 @@
   <button id="sendBtn">Send</button>
 </div>
 
-<!-- Name prompt overlay -->
 <div id="namePrompt">
   <h2>Enter ya name</h2>
   <input type="text" id="userNameInput" placeholder="e.g. shona" />
@@ -140,14 +153,6 @@
 
   let userName = "";
 
-  function startChat() {
-    const input = document.getElementById("userNameInput").value.trim();
-    if (input) {
-      userName = input;
-      document.getElementById("namePrompt").style.display = "none";
-    }
-  }
-
   function sendMessage(text) {
     if (text.trim() === "") return;
     push(messagesRef, {
@@ -157,7 +162,12 @@
     });
   }
 
-  onValue(messagesRef, (snapshot) => {
+  function formatTime(ts) {
+    const date = new Date(ts);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderMessages(snapshot) {
     const data = snapshot.val();
     const chatBox = document.getElementById("chat");
     chatBox.innerHTML = "";
@@ -165,13 +175,32 @@
     for (let key in data) {
       const msg = data[key];
       const msgDiv = document.createElement("div");
+      const timeDiv = document.createElement("div");
+
       msgDiv.classList.add("message");
       msgDiv.classList.add(msg.sender === userName ? "me" : "other");
-      msgDiv.textContent = `${msg.text}`;
+      msgDiv.textContent = msg.text;
+
+      timeDiv.classList.add("timestamp");
+      timeDiv.textContent = formatTime(msg.timestamp);
+
+      msgDiv.appendChild(timeDiv);
       chatBox.appendChild(msgDiv);
     }
 
     chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // Attach event after name is set
+  document.getElementById("startBtn").addEventListener("click", () => {
+    const input = document.getElementById("userNameInput").value.trim();
+    if (input) {
+      userName = input;
+      document.getElementById("namePrompt").style.display = "none";
+
+      // Start real-time listener after name is set
+      onValue(messagesRef, renderMessages);
+    }
   });
 
   document.getElementById("sendBtn").addEventListener("click", () => {
@@ -185,13 +214,6 @@
       document.getElementById("sendBtn").click();
     }
   });
-   document.getElementById("startBtn").addEventListener("click", () => {
-  const input = document.getElementById("userNameInput").value.trim();
-  if (input) {
-    userName = input;
-    document.getElementById("namePrompt").style.display = "none";
-  }
-});
 </script>
 
 </body>
