@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Loveline 💌</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #e5ddd5;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #chat {
+      flex: 1;
+      padding: 10px;
+      overflow-y: scroll;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .message {
+      max-width: 80%;
+      padding: 10px 14px;
+      border-radius: 16px;
+      font-size: 15px;
+      word-wrap: break-word;
+      margin: 4px 0;
+    }
+
+    .me {
+      background-color: #dcf8c6;
+      align-self: flex-end;
+      margin-left: auto;
+    }
+
+    .other {
+      background-color: #f1f0f0;
+      align-self: flex-start;
+      margin-right: auto;
+    }
+
+    #inputArea {
+      display: flex;
+      padding: 10px;
+      background: #f0f0f0;
+    }
+
+    input[type="text"] {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 20px;
+      margin-right: 10px;
+      outline: none;
+    }
+
+    #sendBtn {
+      padding: 10px 18px;
+      border: none;
+      background: #128c7e;
+      color: white;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+
+    #namePrompt {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.75);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+
+    #namePrompt input {
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      margin-top: 10px;
+      width: 200px;
+      text-align: center;
+    }
+
+    #namePrompt button {
+      margin-top: 10px;
+      padding: 10px 16px;
+      background: #25d366;
+      border: none;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="chat"></div>
+
+<div id="inputArea">
+  <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
+  <button id="sendBtn">Send</button>
+</div>
+
+<!-- Name prompt overlay -->
+<div id="namePrompt">
+  <h2>Enter your name 💌</h2>
+  <input type="text" id="userNameInput" placeholder="e.g. Mahi 💖" />
+  <button onclick="startChat()">Start Chat</button>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
+  import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBoxM-LBjDShU9BGB1ArmzbfoCFQqH41YY",
+    authDomain: "live-chat-fc058.firebaseapp.com",
+    databaseURL: "https://live-chat-fc058-default-rtdb.firebaseio.com",
+    projectId: "live-chat-fc058",
+    storageBucket: "live-chat-fc058.appspot.com",
+    messagingSenderId: "914347657330",
+    appId: "1:914347657330:web:7ac2c4f203cba614089aeb",
+    measurementId: "G-5GHD4Y6XZY"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const messagesRef = ref(db, "chat/messages");
+
+  let userName = "";
+
+  function startChat() {
+    const input = document.getElementById("userNameInput").value.trim();
+    if (input) {
+      userName = input;
+      document.getElementById("namePrompt").style.display = "none";
+    }
+  }
+
+  function sendMessage(text) {
+    if (text.trim() === "") return;
+    push(messagesRef, {
+      sender: userName,
+      text,
+      timestamp: Date.now()
+    });
+  }
+
+  onValue(messagesRef, (snapshot) => {
+    const data = snapshot.val();
+    const chatBox = document.getElementById("chat");
+    chatBox.innerHTML = "";
+
+    for (let key in data) {
+      const msg = data[key];
+      const msgDiv = document.createElement("div");
+      msgDiv.classList.add("message");
+      msgDiv.classList.add(msg.sender === userName ? "me" : "other");
+      msgDiv.textContent = `${msg.text}`;
+      chatBox.appendChild(msgDiv);
+    }
+
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
+
+  document.getElementById("sendBtn").addEventListener("click", () => {
+    const msg = document.getElementById("msg").value;
+    sendMessage(msg);
+    document.getElementById("msg").value = "";
+  });
+
+  document.getElementById("msg").addEventListener("keyup", (e) => {
+    if (e.key === "Enter") {
+      document.getElementById("sendBtn").click();
+    }
+  });
+</script>
+
+</body>
+</html>
