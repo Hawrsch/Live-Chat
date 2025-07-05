@@ -114,6 +114,19 @@
       border-radius: 20px;
       color: white;
       cursor: pointer;
+
+      .message audio {
+  width: 180px;
+  margin-top: 5px;
+  border-radius: 10px;
+}
+
+.timestamp {
+  font-size: 11px;
+  color: gray;
+  margin-top: 3px;
+  text-align: right;
+}
     }
   </style>
 </head>
@@ -125,6 +138,7 @@
 <div id="inputArea">
   <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
   <button id="sendBtn">Send</button>
+  <button id="recordBtn">🎙️</button>
 </div>
 
 <div id="namePrompt">
@@ -174,29 +188,54 @@ let typingTimeout;
   }
 
   function renderMessages(snapshot) {
-    const data = snapshot.val();
-    const chatBox = document.getElementById("chat");
-    chatBox.innerHTML = "";
+  const data = snapshot.val();
+  const chatBox = document.getElementById("chat");
+  chatBox.innerHTML = "";
 
-    for (let key in data) {
-      const msg = data[key];
-      const msgDiv = document.createElement("div");
-      const timeDiv = document.createElement("div");
+  for (let key in data) {
+    const msg = data[key];
 
-      msgDiv.classList.add("message");
-      msgDiv.classList.add(msg.sender === userName ? "me" : "other");
-      msgDiv.textContent = msg.text;
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("message");
+    msgDiv.classList.add(msg.sender === userName ? "me" : "other");
 
-      timeDiv.classList.add("timestamp");
-      timeDiv.textContent = formatTime(msg.timestamp);
-
-      msgDiv.appendChild(timeDiv);
-      chatBox.appendChild(msgDiv);
+    // 🎤 Voice Message
+    if (msg.audioBase64) {
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = msg.audioBase64;
+      msgDiv.appendChild(audio);
     }
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+    // 🖼 Image Message
+    else if (msg.imageBase64) {
+      const img = document.createElement("img");
+      img.src = msg.imageBase64;
+      img.style.maxWidth = "200px";
+      img.style.borderRadius = "10px";
+      img.style.marginTop = "5px";
+      msgDiv.appendChild(img);
+    }
+
+    // 💬 Text Message
+    else if (msg.text) {
+      msgDiv.textContent = msg.text;
+    }
+
+    // 🕒 Timestamp (always at bottom)
+    const timeDiv = document.createElement("div");
+    timeDiv.classList.add("timestamp");
+    timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    msgDiv.appendChild(timeDiv);
+    chatBox.appendChild(msgDiv);
   }
 
+  chatBox.scrollTop = chatBox.scrollHeight;
+        }
   // Attach event after name is set
   document.getElementById("startBtn").addEventListener("click", () => {
     const input = document.getElementById("userNameInput").value.trim();
@@ -237,6 +276,46 @@ onValue(typingRef, (snapshot) => {
   typingTimeout = setTimeout(() => {
     set(typingRef, { [userName]: false }); // stop typing after 2s
   }, 2000);
+});
+  let mediaRecorder;
+let audioChunks = [];
+
+const recordBtn = document.getElementById("recordBtn");
+
+recordBtn.addEventListener("click", async () => {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      const reader = new FileReader();
+
+      reader.onloadend = function () {
+        const base64Audio = reader.result;
+
+        push(messagesRef, {
+          sender: userName,
+          audioBase64: base64Audio,
+          timestamp: Date.now()
+        });
+      };
+
+      reader.readAsDataURL(blob);
+    };
+
+    mediaRecorder.start();
+    recordBtn.textContent = "⏹️ Stop";
+  } else {
+    mediaRecorder.stop();
+    recordBtn.textContent = "🎙️";
+  }
 });
 </script>
 
