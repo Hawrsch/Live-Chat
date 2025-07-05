@@ -155,6 +155,7 @@
 
   function sendMessage(text) {
     if (text.trim() === "") return;
+    console.log("Sending message:", text); // 👈 ADD THIS
     push(messagesRef, {
       sender: userName,
       text,
