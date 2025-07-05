@@ -120,6 +120,7 @@
 <body>
 
 <div id="chat"></div>
+  <div id="typingStatus" style="color: gray; padding: 5px 15px; font-style: italic;"></div>
 
 <div id="inputArea">
   <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
@@ -133,6 +134,8 @@
 </div>
 
 <script type="module">
+  const msgInput = document.getElementById("msg");
+let typingTimeout;
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
   import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
@@ -149,6 +152,7 @@
 
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
+  const typingRef = ref(db, "chat/typing");
   const messagesRef = ref(db, "chat/messages");
 
   let userName = "";
@@ -160,6 +164,7 @@
       sender: userName,
       text,
       timestamp: Date.now()
+      set(typingRef, { [userName]: false });
     });
   }
 
@@ -203,7 +208,17 @@
       onValue(messagesRef, renderMessages);
     }
   });
+onValue(typingRef, (snapshot) => {
+  const data = snapshot.val() || {};
+  const typingUsers = Object.keys(data).filter(name => data[name] && name !== userName);
 
+  const indicator = document.getElementById("typingStatus");
+  if (typingUsers.length > 0) {
+    indicator.textContent = `${typingUsers[0]} is typing...`;
+  } else {
+    indicator.textContent = "";
+  }
+});
   document.getElementById("sendBtn").addEventListener("click", () => {
     const msg = document.getElementById("msg").value;
     sendMessage(msg);
@@ -215,6 +230,14 @@
       document.getElementById("sendBtn").click();
     }
   });
+  msgInput.addEventListener("input", () => {
+  set(typingRef, { [userName]: true }); // you're typing
+
+  clearTimeout(typingTimeout);
+  typingTimeout = setTimeout(() => {
+    set(typingRef, { [userName]: false }); // stop typing after 2s
+  }, 2000);
+});
 </script>
 
 </body>
