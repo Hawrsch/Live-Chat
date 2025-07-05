@@ -43,13 +43,11 @@
     .me {
       background-color: #dcf8c6;
       align-self: flex-end;
-      margin-left: auto;
     }
 
     .other {
       background-color: #f1f0f0;
       align-self: flex-start;
-      margin-right: auto;
     }
 
     .timestamp {
@@ -176,7 +174,7 @@
   }
 
   function renderMessages(snapshot) {
-    const data = snapshot.val();
+    const data = snapshot.val() || {};
     const chatBox = document.getElementById("chat");
     chatBox.innerHTML = "";
 
@@ -222,7 +220,11 @@
     if (input) {
       userName = input;
       document.getElementById("namePrompt").style.display = "none";
-      onValue(messagesRef, renderMessages);
+
+      // Manual render + real-time update
+      onValue(messagesRef, (snapshot) => {
+        renderMessages(snapshot);
+      });
     }
   });
 
@@ -257,7 +259,7 @@
     }
   });
 
-  // 🎙️ Voice recording logic
+  // 🎙️ Voice recording
   let mediaRecorder;
   let audioChunks = [];
 
@@ -267,7 +269,6 @@
     if (!mediaRecorder || mediaRecorder.state === "inactive") {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       mediaRecorder = new MediaRecorder(stream);
-
       audioChunks = [];
 
       mediaRecorder.ondataavailable = (event) => {
@@ -297,4 +298,7 @@
       recordBtn.textContent = "🎙️";
     }
   });
-</script
+</script>
+
+</body>
+</html>
