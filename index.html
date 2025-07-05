@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Loveline 💌</title>
+  <title>Live-Chat</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -114,9 +114,9 @@
 
 <!-- Name prompt overlay -->
 <div id="namePrompt">
-  <h2>Enter your name 💌</h2>
-  <input type="text" id="userNameInput" placeholder="e.g. Mahi 💖" />
-  <button onclick="startChat()">Start Chat</button>
+  <h2>Enter ya name</h2>
+  <input type="text" id="userNameInput" placeholder="e.g. shona" />
+  <button id="startBtn">Start Chat</button>
 </div>
 
 <script type="module">
@@ -185,6 +185,13 @@
       document.getElementById("sendBtn").click();
     }
   });
+   document.getElementById("startBtn").addEventListener("click", () => {
+  const input = document.getElementById("userNameInput").value.trim();
+  if (input) {
+    userName = input;
+    document.getElementById("namePrompt").style.display = "none";
+  }
+});
 </script>
 
 </body>
