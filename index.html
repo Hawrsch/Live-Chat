@@ -14,48 +14,40 @@
     <input id="msgInput" class="flex-1 p-2 rounded bg-gray-700" placeholder="Type your message..." />
     <button onclick="sendMessage()" class="ml-2 px-4 py-2 bg-blue-600 rounded">Send</button>
   </div>
+<script>
+  const firebaseConfig = {
+    apiKey: "AlzaSyD-3RwPYCuMMiIXUf7C9V1CXqJ3P2SYB8I",
+    authDomain: "chatbot-47c77.firebaseapp.com",
+    databaseURL: "https://chatbot-47c77-default-rtdb.firebaseio.com",
+    projectId: "chatbot-47c77",
+    storageBucket: "chatbot-47c77.appspot.com",
+    messagingSenderId: "738876056600",
+    appId: "1:738876056600:web:e7d5df2caa3357e1120f6d"
+  };
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyD-3RwPYCuMMjlXUf7C9V1CXqJ3P2SYB8I",
-      authDomain: "chatbot-47c77.firebaseapp.com",
-      databaseURL: "https://chatbot-47c77-default-rtdb.firebaseio.com",
-      projectId: "chatbot-47c77",
-      storageBucket: "chatbot-47c77.firebasestorage.app",
-      messagingSenderId: "738876056600",
-      appId: "1:738876056600:web:e7d5df2caa3357e1120f6d"
-    };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.database();
+  const messagesRef = db.ref("chat/messages");
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-    const messagesRef = db.ref("chat/messages");
+  const chatBox = document.getElementById("chatBox");
+  const msgInput = document.getElementById("msgInput");
+  const username = prompt("Enter your name:") || "Anon";
 
-    const chatBox = document.getElementById("chatBox");
-    const msgInput = document.getElementById("msgInput");
+  // Live listener
+  messagesRef.on("child_added", (snapshot) => {
+    const data = snapshot.val();
+    const msgEl = document.createElement("div");
+    msgEl.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
+    chatBox.appendChild(msgEl);
+  });
 
-    // Auto-scroll
-    function scrollToBottom() {
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
+  function sendMessage() {
+    const text = msgInput.value;
+    if (text.trim() === "") return;
+    messagesRef.push({ user: username, text });
+    msgInput.value = "";
+  }
+</script>
 
-    // Listen for new messages
-    messagesRef.on("child_added", (snapshot) => {
-      const data = snapshot.val();
-      const msgEl = document.createElement("div");
-      msgEl.className = "my-2";
-      msgEl.innerHTML = `<strong>${data.user}:</strong> ${data.text}`;
-      chatBox.appendChild(msgEl);
-      scrollToBottom();
-    });
-
-    const username = prompt("Enter your name:");
-
-    function sendMessage() {
-      const text = msgInput.value;
-      if (text.trim() === "") return;
-      messagesRef.push({ user: username || "Anon", text });
-      msgInput.value = "";
-    }
-  </script>
 </body>
 </html>
