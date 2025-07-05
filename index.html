@@ -72,14 +72,13 @@
       outline: none;
     }
 
-    #sendBtn, #recordBtn {
-      padding: 10px 14px;
+    #sendBtn {
+      padding: 10px 18px;
       border: none;
       background: #128c7e;
       color: white;
       border-radius: 20px;
       cursor: pointer;
-      margin-left: 4px;
     }
 
     #namePrompt {
@@ -114,12 +113,6 @@
       color: white;
       cursor: pointer;
     }
-
-    .message audio {
-      width: 180px;
-      margin-top: 5px;
-      border-radius: 10px;
-    }
   </style>
 </head>
 <body>
@@ -130,7 +123,6 @@
 <div id="inputArea">
   <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
   <button id="sendBtn">Send</button>
-  <button id="recordBtn">🎙️</button>
 </div>
 
 <div id="namePrompt">
@@ -185,21 +177,7 @@
       msgDiv.classList.add("message");
       msgDiv.classList.add(msg.sender === userName ? "me" : "other");
 
-      if (msg.audioBase64) {
-        const audio = document.createElement("audio");
-        audio.controls = true;
-        audio.src = msg.audioBase64;
-        msgDiv.appendChild(audio);
-      } else if (msg.imageBase64) {
-        const img = document.createElement("img");
-        img.src = msg.imageBase64;
-        img.style.maxWidth = "200px";
-        img.style.borderRadius = "10px";
-        img.style.marginTop = "5px";
-        msgDiv.appendChild(img);
-      } else if (msg.text) {
-        msgDiv.textContent = msg.text;
-      }
+      msgDiv.textContent = msg.text;
 
       const timeDiv = document.createElement("div");
       timeDiv.classList.add("timestamp");
@@ -220,11 +198,7 @@
     if (input) {
       userName = input;
       document.getElementById("namePrompt").style.display = "none";
-
-      // Manual render + real-time update
-      onValue(messagesRef, (snapshot) => {
-        renderMessages(snapshot);
-      });
+      onValue(messagesRef, renderMessages);
     }
   });
 
@@ -256,46 +230,6 @@
       indicator.textContent = `${typingUsers[0]} is typing...`;
     } else {
       indicator.textContent = "";
-    }
-  });
-
-  // 🎙️ Voice recording
-  let mediaRecorder;
-  let audioChunks = [];
-
-  const recordBtn = document.getElementById("recordBtn");
-
-  recordBtn.addEventListener("click", async () => {
-    if (!mediaRecorder || mediaRecorder.state === "inactive") {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaRecorder = new MediaRecorder(stream);
-      audioChunks = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(audioChunks, { type: "audio/webm" });
-        const reader = new FileReader();
-
-        reader.onloadend = function () {
-          const base64Audio = reader.result;
-          push(messagesRef, {
-            sender: userName,
-            audioBase64: base64Audio,
-            timestamp: Date.now()
-          });
-        };
-
-        reader.readAsDataURL(blob);
-      };
-
-      mediaRecorder.start();
-      recordBtn.textContent = "⏹️ Stop";
-    } else {
-      mediaRecorder.stop();
-      recordBtn.textContent = "🎙️";
     }
   });
 </script>
