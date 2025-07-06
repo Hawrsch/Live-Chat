@@ -148,6 +148,9 @@
 <div id="inputArea">
   <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
   <button id="sendBtn">Send</button>
+  <button id="recordBtn">🎙️</button>
+<input type="file" id="imageInput" accept="image/*" style="display:none;" />
+<button id="imgBtn">📷</button>
 </div>
 
 <!-- Name Prompt -->
@@ -171,12 +174,73 @@
     appId: "1:914347657330:web:7ac2c4f203cba614089aeb",
     measurementId: "G-5GHD4Y6XZY"
   };
-
+  
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const typingRef = ref(db, "chat/typing");
   const messagesRef = ref(db, "chat/messages");
 
+  let mediaRecorder;
+let audioChunks = [];
+
+const recordBtn = document.getElementById("recordBtn");
+
+recordBtn.addEventListener("click", async () => {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    mediaRecorder = new MediaRecorder(stream);
+
+    audioChunks = [];
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type: "audio/webm" });
+      const reader = new FileReader();
+
+      reader.onloadend = function () {
+        const base64Audio = reader.result;
+
+        push(messagesRef, {
+          sender: userName,
+          audioBase64: base64Audio,
+          timestamp: Date.now()
+        });
+      };
+
+      reader.readAsDataURL(blob);
+    };
+
+    mediaRecorder.start();
+    recordBtn.textContent = "⏹️ Stop";
+  } else {
+    mediaRecorder.stop();
+    recordBtn.textContent = "🎙️";
+  }
+});
+
+  document.getElementById("imgBtn").addEventListener("click", () => {
+  document.getElementById("imageInput").click();
+});
+
+document.getElementById("imageInput").addEventListener("change", function () {
+  const file = this.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      const base64Image = reader.result;
+      push(messagesRef, {
+        sender: userName,
+        imageBase64: base64Image,
+        timestamp: Date.now()
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+});
+  
   let userName = "";
   let selectedMessage = null;
   const msgInput = document.getElementById("msg");
@@ -219,9 +283,31 @@
         msgDiv.appendChild(replyDiv);
       }
 
-      const msgText = document.createElement("div");
-      msgText.textContent = msg.text;
-      msgDiv.appendChild(msgText);
+      // Show text
+if (msg.text) {
+  const msgText = document.createElement("div");
+  msgText.textContent = msg.text;
+  msgDiv.appendChild(msgText);
+}
+
+// Show image
+if (msg.imageBase64) {
+  const img = document.createElement("img");
+  img.src = msg.imageBase64;
+  img.style.maxWidth = "200px";
+  img.style.borderRadius = "10px";
+  img.style.marginTop = "5px";
+  msgDiv.appendChild(img);
+}
+
+// Show audio
+if (msg.audioBase64) {
+  const audio = document.createElement("audio");
+  audio.controls = true;
+  audio.src = msg.audioBase64;
+  audio.style.marginTop = "5px";
+  msgDiv.appendChild(audio);
+}
 
       const timeDiv = document.createElement("div");
       timeDiv.classList.add("timestamp");
