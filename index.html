@@ -63,6 +63,11 @@
       background: #f0f0f0;
     }
 
+    #replyPreview {
+  border-top: 1px solid #ddd;
+  border-bottom: 1px solid #ccc;
+    }
+    
     input[type="text"] {
       flex: 1;
       padding: 10px;
@@ -120,6 +125,11 @@
 <div id="chat"></div>
 <div id="typingStatus" style="color: gray; padding: 5px 15px; font-style: italic;"></div>
 
+<div id="replyPreview" style="display:none; background: #f0f0f0; padding: 8px 16px; font-size: 14px;">
+  Replying to: <span id="replyText" style="font-style: italic;"></span>
+  <button onclick="cancelReply()" style="float:right; background:none; border:none; color:red;">X</button>
+</div>
+  
 <div id="inputArea">
   <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
   <button id="sendBtn">Send</button>
@@ -152,6 +162,7 @@
   const messagesRef = ref(db, "chat/messages");
 
   let userName = "";
+  let selectedMessage = null;
   const msgInput = document.getElementById("msg");
   let typingTimeout;
 
@@ -161,10 +172,25 @@
       sender: userName,
       text,
       timestamp: Date.now()
+      replyTo: selectedMessage || null
     });
+    selectedMessage = null;
+    cancelReply();
     set(typingRef, { [userName]: false });
   }
 
+  function showReplyPreview() {
+  if (selectedMessage) {
+    document.getElementById("replyText").textContent = selectedMessage;
+    document.getElementById("replyPreview").style.display = "block";
+  }
+}
+
+function cancelReply() {
+  selectedMessage = null;
+  document.getElementById("replyPreview").style.display = "none";
+}
+  
   function renderMessages(snapshot) {
     const data = snapshot.val() || {};
     const chatBox = document.getElementById("chat");
@@ -177,7 +203,26 @@
       msgDiv.classList.add("message");
       msgDiv.classList.add(msg.sender === userName ? "me" : "other");
 
-      msgDiv.textContent = msg.text;
+     // If message is a reply, show quoted text first
+    if (msg.replyTo) {
+      const replyDiv = document.createElement("div");
+  replyDiv.textContent = `↪️ ${msg.replyTo}`;
+  replyDiv.style.fontSize = "13px";
+  replyDiv.style.color = "gray";
+  replyDiv.style.marginBottom = "5px";
+  replyDiv.style.borderLeft = "3px solid #ccc";
+  replyDiv.style.paddingLeft = "8px";
+  msgDiv.appendChild(replyDiv);
+}
+
+// Then show actual message text
+const msgText = document.createElement("div");
+msgText.textContent = msg.text;
+msgDiv.appendChild(msgText);
+      msgDiv.addEventListener("click", () => {
+  selectedMessage = msg.text;
+  showReplyPreview();
+});
 
       const timeDiv = document.createElement("div");
       timeDiv.classList.add("timestamp");
@@ -221,7 +266,7 @@
       set(typingRef, { [userName]: false });
     }, 2000);
   });
-
+  
   onValue(typingRef, (snapshot) => {
     const data = snapshot.val() || {};
     const typingUsers = Object.keys(data).filter(name => data[name] && name !== userName);
