@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Live-Chat</title>
+  <title>Live Chat</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -63,11 +63,6 @@
       background: #f0f0f0;
     }
 
-    #replyPreview {
-  border-top: 1px solid #ddd;
-  border-bottom: 1px solid #ccc;
-    }
-    
     input[type="text"] {
       flex: 1;
       padding: 10px;
@@ -118,6 +113,24 @@
       color: white;
       cursor: pointer;
     }
+
+    #replyPreview {
+      display: none;
+      background: #f0f0f0;
+      padding: 8px 16px;
+      font-size: 14px;
+      border-top: 1px solid #ddd;
+      border-bottom: 1px solid #ccc;
+    }
+
+    #replyPreview button {
+      float: right;
+      background: none;
+      border: none;
+      color: red;
+      font-weight: bold;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -125,16 +138,19 @@
 <div id="chat"></div>
 <div id="typingStatus" style="color: gray; padding: 5px 15px; font-style: italic;"></div>
 
-<div id="replyPreview" style="display:none; background: #f0f0f0; padding: 8px 16px; font-size: 14px;">
+<!-- Reply Preview -->
+<div id="replyPreview">
   Replying to: <span id="replyText" style="font-style: italic;"></span>
-  <button onclick="cancelReply()" style="float:right; background:none; border:none; color:red;">X</button>
+  <button onclick="cancelReply()">❌</button>
 </div>
-  
+
+<!-- Input -->
 <div id="inputArea">
   <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
   <button id="sendBtn">Send</button>
 </div>
 
+<!-- Name Prompt -->
 <div id="namePrompt">
   <h2>Enter your name</h2>
   <input type="text" id="userNameInput" placeholder="e.g. shona" />
@@ -171,7 +187,7 @@
     push(messagesRef, {
       sender: userName,
       text,
-      timestamp: Date.now()
+      timestamp: Date.now(),
       replyTo: selectedMessage || null
     });
     selectedMessage = null;
@@ -179,18 +195,6 @@
     set(typingRef, { [userName]: false });
   }
 
-  function showReplyPreview() {
-  if (selectedMessage) {
-    document.getElementById("replyText").textContent = selectedMessage;
-    document.getElementById("replyPreview").style.display = "block";
-  }
-}
-
-function cancelReply() {
-  selectedMessage = null;
-  document.getElementById("replyPreview").style.display = "none";
-}
-  
   function renderMessages(snapshot) {
     const data = snapshot.val() || {};
     const chatBox = document.getElementById("chat");
@@ -203,26 +207,21 @@ function cancelReply() {
       msgDiv.classList.add("message");
       msgDiv.classList.add(msg.sender === userName ? "me" : "other");
 
-     // If message is a reply, show quoted text first
-    if (msg.replyTo) {
-      const replyDiv = document.createElement("div");
-  replyDiv.textContent = `↪️ ${msg.replyTo}`;
-  replyDiv.style.fontSize = "13px";
-  replyDiv.style.color = "gray";
-  replyDiv.style.marginBottom = "5px";
-  replyDiv.style.borderLeft = "3px solid #ccc";
-  replyDiv.style.paddingLeft = "8px";
-  msgDiv.appendChild(replyDiv);
-}
+      // Handle reply part
+      if (msg.replyTo) {
+        const replyDiv = document.createElement("div");
+        replyDiv.textContent = `↪️ ${msg.replyTo}`;
+        replyDiv.style.fontSize = "13px";
+        replyDiv.style.color = "gray";
+        replyDiv.style.marginBottom = "5px";
+        replyDiv.style.borderLeft = "3px solid #ccc";
+        replyDiv.style.paddingLeft = "8px";
+        msgDiv.appendChild(replyDiv);
+      }
 
-// Then show actual message text
-const msgText = document.createElement("div");
-msgText.textContent = msg.text;
-msgDiv.appendChild(msgText);
-      msgDiv.addEventListener("click", () => {
-  selectedMessage = msg.text;
-  showReplyPreview();
-});
+      const msgText = document.createElement("div");
+      msgText.textContent = msg.text;
+      msgDiv.appendChild(msgText);
 
       const timeDiv = document.createElement("div");
       timeDiv.classList.add("timestamp");
@@ -230,12 +229,29 @@ msgDiv.appendChild(msgText);
         hour: '2-digit',
         minute: '2-digit'
       });
-
       msgDiv.appendChild(timeDiv);
+
+      msgDiv.addEventListener("click", () => {
+        selectedMessage = msg.text;
+        showReplyPreview();
+      });
+
       chatBox.appendChild(msgDiv);
     }
 
     chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function showReplyPreview() {
+    if (selectedMessage) {
+      document.getElementById("replyText").textContent = selectedMessage;
+      document.getElementById("replyPreview").style.display = "block";
+    }
+  }
+
+  function cancelReply() {
+    selectedMessage = null;
+    document.getElementById("replyPreview").style.display = "none";
   }
 
   document.getElementById("startBtn").addEventListener("click", () => {
@@ -266,7 +282,7 @@ msgDiv.appendChild(msgText);
       set(typingRef, { [userName]: false });
     }, 2000);
   });
-  
+
   onValue(typingRef, (snapshot) => {
     const data = snapshot.val() || {};
     const typingUsers = Object.keys(data).filter(name => data[name] && name !== userName);
