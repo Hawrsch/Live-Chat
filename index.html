@@ -135,306 +135,76 @@
 </head>
 <body>
 
-<button id="loadOlderBtn" style="padding: 6px 12px; background:#eee; border:none; cursor:pointer;">⬆️ Load Older</button>
-
-<div id="chat"></div>
-<div id="typingStatus" style="color: gray; padding: 5px 15px; font-style: italic;"></div>
-
-<!-- Reply Preview -->
-<div id="replyPreview">
-  Replying to: <span id="replyText" style="font-style: italic;"></span>
-  <button onclick="cancelReply()">❌</button>
-</div>
-
-<!-- Input -->
-<div id="inputArea">
-  <input type="text" id="msg" placeholder="Type a message..." autocomplete="off" />
-  <button id="sendBtn">Send</button>
-  <button id="recordBtn">🎙️</button>
-<input type="file" id="imageInput" accept="image/*" style="display:none;" />
-<button id="imgBtn">📷</button>
-</div>
-
-<!-- Name Prompt -->
-<div id="namePrompt">
-  <h2>Enter your name</h2>
-  <input type="text" id="userNameInput" placeholder="e.g. shona" />
-  <button id="startBtn">Start Chat</button>
-</div>
+<!-- content untouched until script -->
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-  
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
 import {
   getDatabase,
   ref,
   push,
+  onChildAdded,
   onValue,
   set,
-  onChildAdded,
   query,
   orderByChild,
   limitToLast,
   endAt
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBoxM-LBjDShU9BGB1ArmzbfoCFQqH41YY",
-    authDomain: "live-chat-fc058.firebaseapp.com",
-    databaseURL: "https://live-chat-fc058-default-rtdb.asia-southeast1.firebasedatabase.app",
-    projectId: "live-chat-fc058",
-    storageBucket: "live-chat-fc058.appspot.com",
-    messagingSenderId: "914347657330",
-    appId: "1:914347657330:web:7ac2c4f203cba614089aeb",
-    measurementId: "G-5GHD4Y6XZY"
-  };
-  
-  const app = initializeApp(firebaseConfig);
-  const db = getDatabase(app);
-  const typingRef = ref(db, "chat/typing");
-  const messagesRef = ref(db, "chat/messages");
+const firebaseConfig = { ... };
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const messagesRef = ref(db, "chat/messages");
 
-  let mediaRecorder;
-let audioChunks = [];
+let userName = "";
+let oldestTimestamp = null;
+const chatBox = document.getElementById("chat");
 
-const recordBtn = document.getElementById("recordBtn");
-
-recordBtn.addEventListener("click", async () => {
-  if (!mediaRecorder || mediaRecorder.state === "inactive") {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorder = new MediaRecorder(stream);
-
-    audioChunks = [];
-
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
-
-    mediaRecorder.onstop = () => {
-      const blob = new Blob(audioChunks, { type: "audio/webm" });
-      const reader = new FileReader();
-
-      reader.onloadend = function () {
-        const base64Audio = reader.result;
-
-        push(messagesRef, {
-          sender: userName,
-          audioBase64: base64Audio,
-          timestamp: Date.now()
-        });
-      };
-
-      reader.readAsDataURL(blob);
-    };
-
-    mediaRecorder.start();
-    recordBtn.textContent = "⏹️ Stop";
-  } else {
-    mediaRecorder.stop();
-    recordBtn.textContent = "🎙️";
-  }
-});
-
-  document.getElementById("imgBtn").addEventListener("click", () => {
-  document.getElementById("imageInput").click();
-});
-
-document.getElementById("imageInput").addEventListener("change", function () {
-  const file = this.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      const base64Image = reader.result;
-      push(messagesRef, {
-        sender: userName,
-        imageBase64: base64Image,
-        timestamp: Date.now()
-      });
-    };
-    reader.readAsDataURL(file);
-  }
-});
-  
-  let userName = "";
-  let selectedMessage = null;
-  const msgInput = document.getElementById("msg");
-  let typingTimeout;
-
-  function sendMessage(text) {
-    if (text.trim() === "") return;
-    push(messagesRef, {
-      sender: userName,
-      text,
-      timestamp: Date.now(),
-      replyTo: selectedMessage || null
-    });
-    selectedMessage = null;
-    cancelReply();
-    set(typingRef, { [userName]: false });
-  }
-
-  function renderMessagesArray(messages, prepend = false) {
-  const chatBox = document.getElementById("chat");
-  if (!prepend) chatBox.innerHTML = "";
-
-  messages.forEach((msg) => {
+function renderMessagesArray(messages, prepend = false) {
+  messages.forEach(msg => {
     const msgDiv = document.createElement("div");
     msgDiv.classList.add("message", msg.sender === userName ? "me" : "other");
-
-    if (msg.replyTo) {
-      const replyDiv = document.createElement("div");
-      replyDiv.textContent = `↪️ ${msg.replyTo}`;
-      replyDiv.style = "font-size:13px;color:gray;margin-bottom:5px;border-left:3px solid #ccc;padding-left:8px;";
-      msgDiv.appendChild(replyDiv);
-    }
-
-    if (msg.text) {
-      const msgText = document.createElement("div");
-      msgText.textContent = msg.text;
-      msgDiv.appendChild(msgText);
-    }
-
-    if (msg.imageBase64) {
-      const img = document.createElement("img");
-      img.src = msg.imageBase64;
-      img.style = "max-width:200px;border-radius:10px;margin-top:5px;";
-      msgDiv.appendChild(img);
-    }
-
-    if (msg.audioBase64) {
-      const audio = document.createElement("audio");
-      audio.controls = true;
-      audio.src = msg.audioBase64;
-      audio.style.marginTop = "5px";
-      msgDiv.appendChild(audio);
-    }
-
-    const timeDiv = document.createElement("div");
-    timeDiv.classList.add("timestamp");
-    timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString([], {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    msgDiv.appendChild(timeDiv);
-
-    msgDiv.addEventListener("click", () => {
-      selectedMessage = msg.text;
-      showReplyPreview();
-    });
-
-    if (prepend) {
-      chatBox.prepend(msgDiv);
-    } else {
-      chatBox.appendChild(msgDiv);
-    }
+    msgDiv.textContent = msg.text || "(media)";
+    if (prepend) chatBox.prepend(msgDiv);
+    else chatBox.appendChild(msgDiv);
   });
-
   chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-document.getElementById("loadOlderBtn").addEventListener("click", () => {
-  if (!oldestTimestamp) return;
-
-  const olderQuery = query(
-    messagesRef,
-    orderByChild("timestamp"),
-    endAt(oldestTimestamp - 1), // fetch older than current oldest
-    limitToLast(25)
-  );
-
-  onValue(olderQuery, (snapshot) => {
-    const olderMessages = [];
-    snapshot.forEach((child) => {
-      const msg = child.val();
-      olderMessages.push({ id: child.key, ...msg });
-
-      // update oldestTimestamp
-      if (msg.timestamp < oldestTimestamp) {
-        oldestTimestamp = msg.timestamp;
-      }
-    });
-
-    // add them to top (prepend)
-    renderMessagesArray(olderMessages, true);
-  }, { onlyOnce: true });
-});
-
-  function showReplyPreview() {
-    if (selectedMessage) {
-      document.getElementById("replyText").textContent = selectedMessage;
-      document.getElementById("replyPreview").style.display = "block";
-    }
-  }
-
-  function cancelReply() {
-    selectedMessage = null;
-    document.getElementById("replyPreview").style.display = "none";
-  }
-
- let oldestTimestamp = null;
-
 function loadLatestMessages() {
   const latestQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
-
-  onValue(latestQuery, (snapshot) => {
+  onValue(latestQuery, snapshot => {
     const messages = [];
-    snapshot.forEach((child) => {
+    snapshot.forEach(child => {
       const msg = child.val();
       messages.push({ id: child.key, ...msg });
-
-      // Set the oldest timestamp
       if (!oldestTimestamp || msg.timestamp < oldestTimestamp) {
         oldestTimestamp = msg.timestamp;
       }
     });
-
     renderMessagesArray(messages);
   }, { onlyOnce: true });
 }
- document.getElementById("startBtn").addEventListener("click", () => {
-    const input = document.getElementById("userNameInput").value.trim();
-    if (input) {
-      userName = input;
-      document.getElementById("namePrompt").style.display = "none";
-      loadLatestMessages();
-onChildAdded(messagesRef, (snapshot) => {
-  const msg = snapshot.val();
-  const msgObj = { id: snapshot.key, ...msg };
-  renderMessagesArray([msgObj]); // Add only new one
-});
+
+function appendOnlyNewMessages() {
+  onChildAdded(messagesRef, snapshot => {
+    const msg = snapshot.val();
+    if (!oldestTimestamp || msg.timestamp > oldestTimestamp) {
+      renderMessagesArray([{ id: snapshot.key, ...msg }]);
+    }
+  });
 }
-  });
 
-  document.getElementById("sendBtn").addEventListener("click", () => {
-    const msg = msgInput.value;
-    sendMessage(msg);
-    msgInput.value = "";
-  });
-
-  msgInput.addEventListener("keyup", (e) => {
-    if (e.key === "Enter") {
-      document.getElementById("sendBtn").click();
-    }
-  });
-
-  msgInput.addEventListener("input", () => {
-    set(typingRef, { [userName]: true });
-    clearTimeout(typingTimeout);
-    typingTimeout = setTimeout(() => {
-      set(typingRef, { [userName]: false });
-    }, 2000);
-  });
-
-  onValue(typingRef, (snapshot) => {
-    const data = snapshot.val() || {};
-    const typingUsers = Object.keys(data).filter(name => data[name] && name !== userName);
-    const indicator = document.getElementById("typingStatus");
-    if (typingUsers.length > 0) {
-      indicator.textContent = `${typingUsers[0]} is typing...`;
-    } else {
-      indicator.textContent = "";
-    }
-  });
+document.getElementById("startBtn").addEventListener("click", () => {
+  const input = document.getElementById("userNameInput").value.trim();
+  if (input) {
+    userName = input;
+    document.getElementById("namePrompt").style.display = "none";
+    loadLatestMessages();
+    appendOnlyNewMessages();
+  }
+});
 </script>
 
 </body>
