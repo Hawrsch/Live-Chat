@@ -370,7 +370,27 @@ document.getElementById("loadOlderBtn").addEventListener("click", () => {
     document.getElementById("replyPreview").style.display = "none";
   }
 
-  document.getElementById("startBtn").addEventListener("click", () => {
+ let oldestTimestamp = null;
+
+function loadLatestMessages() {
+  const latestQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
+
+  onValue(latestQuery, (snapshot) => {
+    const messages = [];
+    snapshot.forEach((child) => {
+      const msg = child.val();
+      messages.push({ id: child.key, ...msg });
+
+      // Set the oldest timestamp
+      if (!oldestTimestamp || msg.timestamp < oldestTimestamp) {
+        oldestTimestamp = msg.timestamp;
+      }
+    });
+
+    renderMessagesArray(messages);
+  }, { onlyOnce: true });
+}
+ document.getElementById("startBtn").addEventListener("click", () => {
     const input = document.getElementById("userNameInput").value.trim();
     if (input) {
       userName = input;
