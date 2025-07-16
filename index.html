@@ -135,6 +135,9 @@
 </head>
 <body>
 
+<input type="file" id="bgUpload" accept="image/*" style="display: none;" />
+<button onclick="document.getElementById('bgUpload').click()" style="position: fixed; bottom: 80px; right: 20px; z-index: 999;">Wallpaper bbg</button>
+
 <button id="loadOlderBtn" style="padding: 6px 12px; background:#eee; border:none; cursor:pointer;">⬆️ Load Older</button>
 
 <div id="chat"></div>
@@ -416,6 +419,19 @@ document.getElementById("imageInput").addEventListener("change", function () {
     reader.readAsDataURL(file);
   }
 });
+
+document.getElementById("bgUpload").addEventListener("change", function () {
+  const file = this.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      document.body.style.background = `url('${reader.result}') no-repeat center center fixed`;
+      document.body.style.backgroundSize = "cover";
+    };
+    reader.readAsDataURL(file);
+  }
+});
+
 </script>
 
 </body>
