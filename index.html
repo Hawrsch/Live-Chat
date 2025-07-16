@@ -135,6 +135,8 @@
 </head>
 <body>
 
+<button id="loadOlderBtn" style="padding: 6px 12px; background:#eee; border:none; cursor:pointer;">⬆️ Load Older</button>
+
 <div id="chat"></div>
 <div id="typingStatus" style="color: gray; padding: 5px 15px; font-style: italic;"></div>
 
@@ -162,7 +164,18 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js";
-  import { getDatabase, ref, push, onValue, set } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+  
+import {
+  getDatabase,
+  ref,
+  push,
+  onValue,
+  set,
+  query,
+  orderByChild,
+  limitToLast,
+  endAt
+} from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBoxM-LBjDShU9BGB1ArmzbfoCFQqH41YY",
@@ -259,74 +272,91 @@ document.getElementById("imageInput").addEventListener("change", function () {
     set(typingRef, { [userName]: false });
   }
 
-  function renderMessages(snapshot) {
-    const data = snapshot.val() || {};
-    const chatBox = document.getElementById("chat");
-    chatBox.innerHTML = "";
+  function renderMessagesArray(messages, prepend = false) {
+  const chatBox = document.getElementById("chat");
+  if (!prepend) chatBox.innerHTML = "";
 
-    for (let key in data) {
-      const msg = data[key];
+  messages.forEach((msg) => {
+    const msgDiv = document.createElement("div");
+    msgDiv.classList.add("message", msg.sender === userName ? "me" : "other");
 
-      const msgDiv = document.createElement("div");
-      msgDiv.classList.add("message");
-      msgDiv.classList.add(msg.sender === userName ? "me" : "other");
-
-      // Handle reply part
-      if (msg.replyTo) {
-        const replyDiv = document.createElement("div");
-        replyDiv.textContent = `↪️ ${msg.replyTo}`;
-        replyDiv.style.fontSize = "13px";
-        replyDiv.style.color = "gray";
-        replyDiv.style.marginBottom = "5px";
-        replyDiv.style.borderLeft = "3px solid #ccc";
-        replyDiv.style.paddingLeft = "8px";
-        msgDiv.appendChild(replyDiv);
-      }
-
-      // Show text
-if (msg.text) {
-  const msgText = document.createElement("div");
-  msgText.textContent = msg.text;
-  msgDiv.appendChild(msgText);
-}
-
-// Show image
-if (msg.imageBase64) {
-  const img = document.createElement("img");
-  img.src = msg.imageBase64;
-  img.style.maxWidth = "200px";
-  img.style.borderRadius = "10px";
-  img.style.marginTop = "5px";
-  msgDiv.appendChild(img);
-}
-
-// Show audio
-if (msg.audioBase64) {
-  const audio = document.createElement("audio");
-  audio.controls = true;
-  audio.src = msg.audioBase64;
-  audio.style.marginTop = "5px";
-  msgDiv.appendChild(audio);
-}
-
-      const timeDiv = document.createElement("div");
-      timeDiv.classList.add("timestamp");
-      timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      msgDiv.appendChild(timeDiv);
-
-      msgDiv.addEventListener("click", () => {
-        selectedMessage = msg.text;
-        showReplyPreview();
-      });
-
-      chatBox.appendChild(msgDiv);
+    if (msg.replyTo) {
+      const replyDiv = document.createElement("div");
+      replyDiv.textContent = `↪️ ${msg.replyTo}`;
+      replyDiv.style = "font-size:13px;color:gray;margin-bottom:5px;border-left:3px solid #ccc;padding-left:8px;";
+      msgDiv.appendChild(replyDiv);
     }
 
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
+    if (msg.text) {
+      const msgText = document.createElement("div");
+      msgText.textContent = msg.text;
+      msgDiv.appendChild(msgText);
+    }
+
+    if (msg.imageBase64) {
+      const img = document.createElement("img");
+      img.src = msg.imageBase64;
+      img.style = "max-width:200px;border-radius:10px;margin-top:5px;";
+      msgDiv.appendChild(img);
+    }
+
+    if (msg.audioBase64) {
+      const audio = document.createElement("audio");
+      audio.controls = true;
+      audio.src = msg.audioBase64;
+      audio.style.marginTop = "5px";
+      msgDiv.appendChild(audio);
+    }
+
+    const timeDiv = document.createElement("div");
+    timeDiv.classList.add("timestamp");
+    timeDiv.textContent = new Date(msg.timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    msgDiv.appendChild(timeDiv);
+
+    msgDiv.addEventListener("click", () => {
+      selectedMessage = msg.text;
+      showReplyPreview();
+    });
+
+    if (prepend) {
+      chatBox.prepend(msgDiv);
+    } else {
+      chatBox.appendChild(msgDiv);
+    }
+  });
+
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+document.getElementById("loadOlderBtn").addEventListener("click", () => {
+  if (!oldestTimestamp) return;
+
+  const olderQuery = query(
+    messagesRef,
+    orderByChild("timestamp"),
+    endAt(oldestTimestamp - 1), // fetch older than current oldest
+    limitToLast(25)
+  );
+
+  onValue(olderQuery, (snapshot) => {
+    const olderMessages = [];
+    snapshot.forEach((child) => {
+      const msg = child.val();
+      olderMessages.push({ id: child.key, ...msg });
+
+      // update oldestTimestamp
+      if (msg.timestamp < oldestTimestamp) {
+        oldestTimestamp = msg.timestamp;
+      }
+    });
+
+    // add them to top (prepend)
+    renderMessagesArray(olderMessages, true);
+  }, { onlyOnce: true });
+});
 
   function showReplyPreview() {
     if (selectedMessage) {
@@ -345,7 +375,7 @@ if (msg.audioBase64) {
     if (input) {
       userName = input;
       document.getElementById("namePrompt").style.display = "none";
-      onValue(messagesRef, renderMessages);
+      loadLatestMessages();
     }
   });
 
