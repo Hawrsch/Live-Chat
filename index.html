@@ -12,8 +12,7 @@
       padding: 0;
       display: flex;
       flex-direction: column;
-      height: 100vh;            background:url('https://ibb.co/yc2jk3jm') no-repeat center center fixed;
-  background-size: cover;
+      height: 100vh;
     }
 
     #chat {
@@ -137,6 +136,20 @@
   </style>
 </head>
 <body>
+
+<input type="file" id="bgUpload" accept="image/*" style="display: none;" />
+<button id="wallpaperBtn" style="
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 999;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 0 10px rgba(0,0,0,0.2);
+  font-size: 14px;
+">Wallpaper for u</button>
 
 <button id="loadOlderBtn" style="padding: 6px 12px; background:#eee; border:none; cursor:pointer;">⬆️ Load Older</button>
 
@@ -420,6 +433,25 @@ document.getElementById("imageInput").addEventListener("change", function () {
   }
 });
 
+
+document.getElementById("wallpaperBtn").addEventListener("click", () => {
+  document.getElementById("bgUpload").click();
+});
+
+document.getElementById("bgUpload").addEventListener("change", function () {
+  const file = this.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onloadend = function () {
+      document.body.style.backgroundImage = `url('${reader.result}')`;
+      document.body.style.backgroundRepeat = "no-repeat";
+      document.body.style.backgroundPosition = "center center";
+      document.body.style.backgroundAttachment = "fixed";
+      document.body.style.backgroundSize = "cover";
+    };
+    reader.readAsDataURL(file);
+  }
+});
 
 document.getElementById("wallpaperBtn").addEventListener("click", () => {
   document.getElementById("bgUpload").click();
