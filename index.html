@@ -434,43 +434,30 @@ document.getElementById("imageInput").addEventListener("change", function () {
   }
 });
 
+// 🌄 Wallpaper Upload Handler
+const wallpaperBtn = document.getElementById("wallpaperBtn");
+const bgUploadInput = document.getElementById("bgUpload");
 
-document.getElementById("wallpaperBtn").addEventListener("click", () => {
-  document.getElementById("bgUpload").click();
+wallpaperBtn.addEventListener("click", () => {
+  bgUploadInput.click();
 });
 
-document.getElementById("bgUpload").addEventListener("change", function () {
+bgUploadInput.addEventListener("change", function () {
   const file = this.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      document.body.style.backgroundImage = `url('${reader.result}')`;
-      document.body.style.backgroundRepeat = "no-repeat";
-      document.body.style.backgroundPosition = "center center";
-      document.body.style.backgroundAttachment = "fixed";
-      document.body.style.backgroundSize = "cover";
-    };
-    reader.readAsDataURL(file);
-  }
-});
+  if (!file) return; // 🔒 Prevents looping if nothing is selected
 
-document.getElementById("wallpaperBtn").addEventListener("click", () => {
-  document.getElementById("bgUpload").click();
-});
+  const reader = new FileReader();
+  reader.onloadend = function () {
+    document.body.style.backgroundImage = `url('${reader.result}')`;
+    document.body.style.backgroundRepeat = "no-repeat";
+    document.body.style.backgroundPosition = "center center";
+    document.body.style.backgroundAttachment = "fixed";
+    document.body.style.backgroundSize = "cover";
 
-document.getElementById("bgUpload").addEventListener("change", function () {
-  const file = this.files[0];
-  if (file) {
-    const reader = new FileReader();
-    reader.onloadend = function () {
-      document.body.style.backgroundImage = `url('${reader.result}')`;
-      document.body.style.backgroundRepeat = "no-repeat";
-      document.body.style.backgroundPosition = "center center";
-      document.body.style.backgroundAttachment = "fixed";
-      document.body.style.backgroundSize = "cover";
-    };
-    reader.readAsDataURL(file);
-  }
+    // ✅ Reset input so user can reselect same image again if they want
+    bgUploadInput.value = "";
+  };
+  reader.readAsDataURL(file);
 });
 
 </script>
