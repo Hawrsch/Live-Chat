@@ -198,7 +198,7 @@ let typingTimeout;
 
 function renderMessagesArray(messages, prepend = false) {
   const chatBox = document.getElementById("chat");
-  if (!prepend) return;
+  if (!prepend) chatBox.innerHTML = ""; // fix: clear only on fresh load
 
   messages.forEach((msg) => {
     const msgDiv = document.createElement("div");
@@ -242,7 +242,11 @@ function renderMessagesArray(messages, prepend = false) {
       showReplyPreview();
     });
 
-    chatBox.appendChild(msgDiv);
+    if (prepend) {
+      chatBox.prepend(msgDiv);
+    } else {
+      chatBox.appendChild(msgDiv);
+    }
   });
 
   chatBox.scrollTop = chatBox.scrollHeight;
