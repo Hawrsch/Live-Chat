@@ -22,6 +22,8 @@
       background: #fff;
       display: flex;
       flex-direction: column;
+      overflow-y: auto;
+      min-height: 0;
     }
 
     .message {
@@ -212,6 +214,7 @@ document.getElementById("startBtn").addEventListener("click", () => {
 });
 
 // Load latest 25 messages
+
 function loadLatestMessages() {
   const latestQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
   onValue(latestQuery, (snapshot) => {
@@ -226,11 +229,11 @@ function loadLatestMessages() {
         oldestTimestamp = msg.timestamp;
       }
     });
-    renderMessagesArray(messages, false);
+    renderMessagesArray(messages.reverse(), false); // reverse to show oldest first
+    liveNewMessages(); // call this after messages rendered
   }, { onlyOnce: true });
 }
 
-// Load older messages on button click
 document.getElementById("loadOlderBtn").addEventListener("click", () => {
   if (!oldestTimestamp) return;
 
@@ -250,8 +253,14 @@ document.getElementById("loadOlderBtn").addEventListener("click", () => {
       }
     });
 
-    renderMessagesArray(olderMessages, true);
+    const previousScrollHeight = chatBox.scrollHeight;
+    renderMessagesArray(olderMessages.reverse(), true); // reverse so they stack upwards
+    chatBox.scrollTop = chatBox.scrollHeight - previousScrollHeight; // preserve scroll position
   }, { onlyOnce: true });
+if (!prepend) {
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+console.log("Rendering:", messages.map(m => m.text || "[Media]"));
 });
 
 // Real-time new message listener
