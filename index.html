@@ -396,6 +396,14 @@ function loadLatestMessages() {
       userName = input;
       document.getElementById("namePrompt").style.display = "none";
       loadLatestMessages();
+onValue(messagesRef, (snapshot) => {
+  const messages = [];
+  snapshot.forEach((child) => {
+    const msg = child.val();
+    messages.push({ id: child.key, ...msg });
+  });
+  renderMessagesArray(messages);
+});
     }
   });
 
