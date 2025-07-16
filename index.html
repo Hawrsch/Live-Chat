@@ -396,15 +396,15 @@ function loadLatestMessages() {
       userName = input;
       document.getElementById("namePrompt").style.display = "none";
       loadLatestMessages();
-onValue(messagesRef, (snapshot) => {
-  const messages = [];
-  snapshot.forEach((child) => {
-    const msg = child.val();
-    messages.push({ id: child.key, ...msg });
-  });
-  renderMessagesArray(messages);
+
+    import { onChildAdded } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
+
+onChildAdded(messagesRef, (snapshot) => {
+  const msg = snapshot.val();
+  const msgObj = { id: snapshot.key, ...msg };
+  renderMessagesArray([msgObj]); // Add only new one
 });
-    }
+}
   });
 
   document.getElementById("sendBtn").addEventListener("click", () => {
