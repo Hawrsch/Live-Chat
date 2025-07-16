@@ -22,8 +22,6 @@
       background: #fff;
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
-      min-height: 0;
     }
 
     .message {
@@ -172,6 +170,7 @@ import {
   orderByChild,
   limitToLast,
   endAt,
+  startAt,
   onValue,
   onChildAdded
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-database.js";
@@ -195,42 +194,39 @@ const messagesRef = ref(db, "chat/messages");
 let userName = "";
 let selectedMessage = null;
 let oldestTimestamp = null;
-let messagesStore = {}; // to prevent duplication
-
+let latestTimestamp = Date.now();
 const msgInput = document.getElementById("msg");
 const chatBox = document.getElementById("chat");
-const inputArea = document.getElementById("inputArea");
-let typingTimeout;
+let messagesStore = {};
 
-// Show name prompt
 document.getElementById("startBtn").addEventListener("click", () => {
   const input = document.getElementById("userNameInput").value.trim();
   if (input) {
     userName = input;
     document.getElementById("namePrompt").style.display = "none";
-    loadLatestMessages();
-    liveNewMessages();
+    loadInitialMessages();
+    setupLiveNewMessages();
   }
 });
 
-// Load latest 25 messages
-
-function loadLatestMessages() {
-  const latestQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
-  onValue(latestQuery, (snapshot) => {
+function loadInitialMessages() {
+  const recentQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
+  onValue(recentQuery, (snapshot) => {
     const messages = [];
     snapshot.forEach((child) => {
       const msg = child.val();
       const id = child.key;
       messagesStore[id] = msg;
       messages.push({ id, ...msg });
-
       if (!oldestTimestamp || msg.timestamp < oldestTimestamp) {
         oldestTimestamp = msg.timestamp;
       }
+      if (!latestTimestamp || msg.timestamp > latestTimestamp) {
+        latestTimestamp = msg.timestamp;
+      }
     });
-    renderMessagesArray(messages.reverse(), false); // reverse to show oldest first
-    liveNewMessages(); // call this after messages rendered
+    renderMessagesArray(messages, false);
+    scrollToBottom();
   }, { onlyOnce: true });
 }
 
@@ -246,36 +242,31 @@ document.getElementById("loadOlderBtn").addEventListener("click", () => {
       if (!messagesStore[id]) {
         messagesStore[id] = msg;
         olderMessages.push({ id, ...msg });
-
         if (msg.timestamp < oldestTimestamp) {
           oldestTimestamp = msg.timestamp;
         }
       }
     });
 
-    const previousScrollHeight = chatBox.scrollHeight;
-    renderMessagesArray(olderMessages.reverse(), true); // reverse so they stack upwards
-    chatBox.scrollTop = chatBox.scrollHeight - previousScrollHeight; // preserve scroll position
+    const prevHeight = chatBox.scrollHeight;
+    renderMessagesArray(olderMessages.reverse(), true);
+    chatBox.scrollTop = chatBox.scrollHeight - prevHeight;
   }, { onlyOnce: true });
-if (!prepend) {
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-console.log("Rendering:", messages.map(m => m.text || "[Media]"));
 });
 
-// Real-time new message listener
-function liveNewMessages() {
-  onChildAdded(messagesRef, (snapshot) => {
-    const id = snapshot.key;
-    if (messagesStore[id]) return; // already rendered
-
+function setupLiveNewMessages() {
+  const newMsgQuery = query(messagesRef, orderByChild("timestamp"), startAt(latestTimestamp + 1));
+  onChildAdded(newMsgQuery, (snapshot) => {
     const msg = snapshot.val();
-    messagesStore[id] = msg;
-    renderMessagesArray([{ id, ...msg }], false);
+    const id = snapshot.key;
+    if (!messagesStore[id]) {
+      messagesStore[id] = msg;
+      renderMessagesArray([{ id, ...msg }], false);
+      scrollToBottom();
+    }
   });
 }
 
-// Render messages
 function renderMessagesArray(messages, prepend = false) {
   messages.forEach((msg) => {
     const msgDiv = document.createElement("div");
@@ -325,13 +316,12 @@ function renderMessagesArray(messages, prepend = false) {
       chatBox.appendChild(msgDiv);
     }
   });
-
-  if (!prepend) {
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
 }
 
-// Send message
+function scrollToBottom() {
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
 function sendMessage(text) {
   if (text.trim() === "") return;
   push(messagesRef, {
@@ -345,19 +335,16 @@ function sendMessage(text) {
   set(typingRef, { [userName]: false });
 }
 
-// Send
 document.getElementById("sendBtn").addEventListener("click", () => {
   const msg = msgInput.value;
   sendMessage(msg);
   msgInput.value = "";
 });
 
-// Enter key
 msgInput.addEventListener("keyup", (e) => {
   if (e.key === "Enter") document.getElementById("sendBtn").click();
 });
 
-// Typing
 msgInput.addEventListener("input", () => {
   set(typingRef, { [userName]: true });
   clearTimeout(typingTimeout);
@@ -366,14 +353,12 @@ msgInput.addEventListener("input", () => {
   }, 2000);
 });
 
-// Typing indicator
 onValue(typingRef, (snapshot) => {
   const data = snapshot.val() || {};
   const typingUsers = Object.keys(data).filter(name => data[name] && name !== userName);
   document.getElementById("typingStatus").textContent = typingUsers.length > 0 ? `${typingUsers[0]} is typing...` : "";
 });
 
-// Reply preview
 function showReplyPreview() {
   if (selectedMessage) {
     document.getElementById("replyText").textContent = selectedMessage;
@@ -385,7 +370,6 @@ function cancelReply() {
   document.getElementById("replyPreview").style.display = "none";
 }
 
-// Voice record
 const recordBtn = document.getElementById("recordBtn");
 let mediaRecorder, audioChunks = [];
 
@@ -415,7 +399,6 @@ recordBtn.addEventListener("click", async () => {
   }
 });
 
-// Image upload
 document.getElementById("imgBtn").addEventListener("click", () => {
   document.getElementById("imageInput").click();
 });
