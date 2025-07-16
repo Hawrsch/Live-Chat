@@ -22,6 +22,8 @@
       background: #fff;
       display: flex;
       flex-direction: column;
+      background-color: rgba(255, 255, 255, 0.7); /* Or #000 with 0.6 for dark */
+      backdrop-filter: blur(2px);
     }
 
     .message {
@@ -420,6 +422,8 @@ document.getElementById("imageInput").addEventListener("change", function () {
   }
 });
 
+<script>
+
 document.getElementById("bgUpload").addEventListener("change", function () {
   const file = this.files[0];
   if (file) {
@@ -432,6 +436,7 @@ document.getElementById("bgUpload").addEventListener("change", function () {
   }
 });
 
+</script>
 </script>
 
 </body>
