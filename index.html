@@ -193,13 +193,81 @@ const messagesRef = ref(db, "chat/messages");
 let userName = "";
 let selectedMessage = null;
 let oldestTimestamp = null;
+let messagesStore = {}; // to prevent duplication
+
 const msgInput = document.getElementById("msg");
+const chatBox = document.getElementById("chat");
+const inputArea = document.getElementById("inputArea");
 let typingTimeout;
 
-function renderMessagesArray(messages, prepend = false) {
-  const chatBox = document.getElementById("chat");
-  if (!prepend) chatBox.innerHTML = ""; // fix: clear only on fresh load
+// Show name prompt
+document.getElementById("startBtn").addEventListener("click", () => {
+  const input = document.getElementById("userNameInput").value.trim();
+  if (input) {
+    userName = input;
+    document.getElementById("namePrompt").style.display = "none";
+    loadLatestMessages();
+    liveNewMessages();
+  }
+});
 
+// Load latest 25 messages
+function loadLatestMessages() {
+  const latestQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
+  onValue(latestQuery, (snapshot) => {
+    const messages = [];
+    snapshot.forEach((child) => {
+      const msg = child.val();
+      const id = child.key;
+      messagesStore[id] = msg;
+      messages.push({ id, ...msg });
+
+      if (!oldestTimestamp || msg.timestamp < oldestTimestamp) {
+        oldestTimestamp = msg.timestamp;
+      }
+    });
+    renderMessagesArray(messages, false);
+  }, { onlyOnce: true });
+}
+
+// Load older messages on button click
+document.getElementById("loadOlderBtn").addEventListener("click", () => {
+  if (!oldestTimestamp) return;
+
+  const olderQuery = query(messagesRef, orderByChild("timestamp"), endAt(oldestTimestamp - 1), limitToLast(25));
+  onValue(olderQuery, (snapshot) => {
+    const olderMessages = [];
+    snapshot.forEach((child) => {
+      const msg = child.val();
+      const id = child.key;
+      if (!messagesStore[id]) {
+        messagesStore[id] = msg;
+        olderMessages.push({ id, ...msg });
+
+        if (msg.timestamp < oldestTimestamp) {
+          oldestTimestamp = msg.timestamp;
+        }
+      }
+    });
+
+    renderMessagesArray(olderMessages, true);
+  }, { onlyOnce: true });
+});
+
+// Real-time new message listener
+function liveNewMessages() {
+  onChildAdded(messagesRef, (snapshot) => {
+    const id = snapshot.key;
+    if (messagesStore[id]) return; // already rendered
+
+    const msg = snapshot.val();
+    messagesStore[id] = msg;
+    renderMessagesArray([{ id, ...msg }], false);
+  });
+}
+
+// Render messages
+function renderMessagesArray(messages, prepend = false) {
   messages.forEach((msg) => {
     const msgDiv = document.createElement("div");
     msgDiv.classList.add("message", msg.sender === userName ? "me" : "other");
@@ -249,55 +317,12 @@ function renderMessagesArray(messages, prepend = false) {
     }
   });
 
-  chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-document.getElementById("startBtn").addEventListener("click", () => {
-  const input = document.getElementById("userNameInput").value.trim();
-  if (input) {
-    userName = input;
-    document.getElementById("namePrompt").style.display = "none";
-    loadInitialMessages();
-
-    onChildAdded(messagesRef, (snapshot) => {
-      const msg = snapshot.val();
-      const msgObj = { id: snapshot.key, ...msg };
-      renderMessagesArray([msgObj], true);
-    });
+  if (!prepend) {
+    chatBox.scrollTop = chatBox.scrollHeight;
   }
-});
-
-function loadInitialMessages() {
-  const latestQuery = query(messagesRef, orderByChild("timestamp"), limitToLast(25));
-  onValue(latestQuery, (snapshot) => {
-    const messages = [];
-    snapshot.forEach((child) => {
-      const msg = child.val();
-      messages.push({ id: child.key, ...msg });
-      if (!oldestTimestamp || msg.timestamp < oldestTimestamp) {
-        oldestTimestamp = msg.timestamp;
-      }
-    });
-    renderMessagesArray(messages, true);
-  }, { onlyOnce: true });
 }
 
-document.getElementById("loadOlderBtn").addEventListener("click", () => {
-  if (!oldestTimestamp) return;
-  const olderQuery = query(messagesRef, orderByChild("timestamp"), endAt(oldestTimestamp - 1), limitToLast(25));
-  onValue(olderQuery, (snapshot) => {
-    const olderMessages = [];
-    snapshot.forEach((child) => {
-      const msg = child.val();
-      olderMessages.push({ id: child.key, ...msg });
-      if (msg.timestamp < oldestTimestamp) {
-        oldestTimestamp = msg.timestamp;
-      }
-    });
-    renderMessagesArray(olderMessages, true);
-  }, { onlyOnce: true });
-});
-
+// Send message
 function sendMessage(text) {
   if (text.trim() === "") return;
   push(messagesRef, {
@@ -311,28 +336,19 @@ function sendMessage(text) {
   set(typingRef, { [userName]: false });
 }
 
-function showReplyPreview() {
-  if (selectedMessage) {
-    document.getElementById("replyText").textContent = selectedMessage;
-    document.getElementById("replyPreview").style.display = "block";
-  }
-}
-
-function cancelReply() {
-  selectedMessage = null;
-  document.getElementById("replyPreview").style.display = "none";
-}
-
+// Send
 document.getElementById("sendBtn").addEventListener("click", () => {
   const msg = msgInput.value;
   sendMessage(msg);
   msgInput.value = "";
 });
 
+// Enter key
 msgInput.addEventListener("keyup", (e) => {
   if (e.key === "Enter") document.getElementById("sendBtn").click();
 });
 
+// Typing
 msgInput.addEventListener("input", () => {
   set(typingRef, { [userName]: true });
   clearTimeout(typingTimeout);
@@ -341,13 +357,26 @@ msgInput.addEventListener("input", () => {
   }, 2000);
 });
 
+// Typing indicator
 onValue(typingRef, (snapshot) => {
   const data = snapshot.val() || {};
   const typingUsers = Object.keys(data).filter(name => data[name] && name !== userName);
   document.getElementById("typingStatus").textContent = typingUsers.length > 0 ? `${typingUsers[0]} is typing...` : "";
 });
 
-// Voice + Image
+// Reply preview
+function showReplyPreview() {
+  if (selectedMessage) {
+    document.getElementById("replyText").textContent = selectedMessage;
+    document.getElementById("replyPreview").style.display = "block";
+  }
+}
+function cancelReply() {
+  selectedMessage = null;
+  document.getElementById("replyPreview").style.display = "none";
+}
+
+// Voice record
 const recordBtn = document.getElementById("recordBtn");
 let mediaRecorder, audioChunks = [];
 
@@ -377,6 +406,7 @@ recordBtn.addEventListener("click", async () => {
   }
 });
 
+// Image upload
 document.getElementById("imgBtn").addEventListener("click", () => {
   document.getElementById("imageInput").click();
 });
